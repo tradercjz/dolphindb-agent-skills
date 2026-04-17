@@ -1,0 +1,4 @@
+recursive-include src/dolphindb_skill_installer/skills *
+recursive-include skills *
+include README.md
+include plugin.json

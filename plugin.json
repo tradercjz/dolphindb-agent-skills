@@ -1,0 +1,8 @@
+{
+  "name": "dolphindb-plugin",
+  "description": "An Agent Skill plugin for DolphinDB. Provides comprehensive DolphinDB knowledge: scripting language (DolphinDB Script), SQL queries, time-series analytics, streaming data pipelines, distributed computing, Python/Java/C++ API reference, and database administration best practices.",
+  "version": "0.1.0",
+  "author": {
+    "name": "DolphinDB"
+  }
+}

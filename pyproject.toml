@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dolphindb-agent-skills"
+version = "0.1.0"
+description = "DolphinDB Agent Skills installer — install DolphinDB knowledge skills into your AI coding agent (Claude Code, Cursor, Trae, etc.)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "DolphinDB" }]
+keywords = ["dolphindb", "agent", "skills", "ai", "llm", "coding-assistant"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Intended Audience :: Developers",
+]
+dependencies = ["questionary>=1.10.0"]
+
+[project.scripts]
+dolphindb-agent-skills = "dolphindb_skill_installer.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dolphindb_skill_installer"]
+
+[tool.hatch.build.targets.wheel.sources]
+"src/dolphindb_skill_installer" = "dolphindb_skill_installer"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/skills",
+    "README.md",
+    "plugin.json",
+    "MANIFEST.in",
+]
