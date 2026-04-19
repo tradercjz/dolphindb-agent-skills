@@ -41,8 +41,8 @@ def clean_skills() -> None:
 
 
 def build() -> None:
-    print("\n🔨 Building wheel with uv build …")
-    result = subprocess.run(["uv", "build"], cwd=ROOT)
+    print("\n🔨 Building wheel with python -m build …")
+    result = subprocess.run([sys.executable, "-m", "build", "--no-isolation"], cwd=ROOT)
     if result.returncode != 0:
         print("❌ Build failed")
         sys.exit(result.returncode)

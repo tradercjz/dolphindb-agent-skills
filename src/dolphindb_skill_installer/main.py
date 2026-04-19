@@ -36,14 +36,16 @@ _STYLE = Style([
 # All others are relative to the project root (cwd at install time).
 # ──────────────────────────────────────────────────────────────
 TOOL_CONFIGS: Dict[str, str] = {
-    "Claude Code":    ".claude/skills",
-    "Cursor":         ".cursor/skills",
-    "Trae":           ".trae/skills",
-    "OpenCode":       ".opencode/skills",
-    "GitHub Copilot": ".github/skills",
-    "Codex":          ".agents/skills",
-    "OpenClaw":       "~/.openclaw/workspace/skills",
-    "Qoder":          ".qoder/skills",
+    "Claude Code":          ".claude/skills",
+    "Cursor":               ".cursor/skills",
+    "Trae":                 ".trae/skills",
+    "OpenCode":             ".opencode/skills",
+    "GitHub Copilot":       ".github/skills",
+    "Codex":                ".agents/skills",
+    "OpenClaw":             "~/.openclaw/workspace/skills",
+    "Qoder":                ".qoder/skills",
+    "Antigravity (workspace)": ".agent/skills",
+    "Antigravity (global)":    "~/.agent/skills",
 }
 
 # ──────────────────────────────────────────────────────────────

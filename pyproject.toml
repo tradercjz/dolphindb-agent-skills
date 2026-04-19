@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dolphindb-agent-skills"
-version = "0.1.0"
+version = "0.1.1"
 description = "DolphinDB Agent Skills installer — install DolphinDB knowledge skills into your AI coding agent (Claude Code, Cursor, Trae, etc.)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -25,6 +25,7 @@ dolphindb-agent-skills = "dolphindb_skill_installer.main:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dolphindb_skill_installer"]
+artifacts = ["src/dolphindb_skill_installer/skills/**"]
 
 [tool.hatch.build.targets.wheel.sources]
 "src/dolphindb_skill_installer" = "dolphindb_skill_installer"
@@ -37,3 +38,7 @@ include = [
     "plugin.json",
     "MANIFEST.in",
 ]
+artifacts = ["src/dolphindb_skill_installer/skills/**"]
+
+[tool.hatch.build.targets.sdist.force-include]
+"src/dolphindb_skill_installer/skills" = "src/dolphindb_skill_installer/skills"

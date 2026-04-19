@@ -64,6 +64,8 @@ cp -r dolphindb-agent-skills/skills/dolphindb .claude/skills/
 | Codex | `.agents/skills/` | project |
 | OpenClaw | `~/.openclaw/workspace/skills/` | global |
 | Qoder | `.qoder/skills/` | project |
+| Antigravity (workspace) | `.agent/skills/` | project |
+| Antigravity (global) | `~/.agent/skills/` | global |
 
 ---
 

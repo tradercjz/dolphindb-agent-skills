@@ -66,6 +66,8 @@ cp -r dolphindb-agent-skills/skills/dolphindb .claude/skills/
 | Codex | `.agents/skills/` | 项目级 |
 | OpenClaw | `~/.openclaw/workspace/skills/` | 全局 |
 | Qoder | `.qoder/skills/` | 项目级 |
+| Antigravity（工作区级） | `.agent/skills/` | 项目级 |
+| Antigravity（全局） | `~/.agent/skills/` | 全局 |
 
 ---
 
