@@ -15,3 +15,6 @@ src/dolphindb_skill_installer/skills/
 # skills/dolphindb/reference/.
 documentation-main/
 
+
+uv.lock
+
