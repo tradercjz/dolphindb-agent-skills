@@ -1,0 +1,41 @@
+// Example: a minimal end-to-end stream pipeline.
+// Publishes ticks into a shared stream table, computes a rolling 5-row ma
+// via reactiveStateEngine, and writes the enriched rows to another shared
+// stream table that downstream subscribers can read.
+
+// 1. Shared input stream
+try { dropStreamTable(`ticks) } catch(e) { /* ignore */ }
+share streamTable(1000:0, `ts`sym`px`vol, [TIMESTAMP, SYMBOL, DOUBLE, INT]) as ticks
+
+// 2. Output sink
+try { dropStreamTable(`ticksEnriched) } catch(e) { /* ignore */ }
+share streamTable(1000:0, `ts`sym`px`ma5, [TIMESTAMP, SYMBOL, DOUBLE, DOUBLE]) as ticksEnriched
+
+// 3. Reactive state engine: per-sym ma5 and pass-through
+try { dropStreamEngine(`ma5Engine) } catch(e) { /* ignore */ }
+engine = createReactiveStateEngine(
+    name         = "ma5Engine",
+    metrics      = <[ts, px, mavg(px, 5) as ma5]>,
+    dummyTable   = ticks,
+    outputTable  = ticksEnriched,
+    keyColumn    = `sym
+)
+
+// 4. Wire input → engine
+subscribeTable(
+    tableName  = `ticks,
+    actionName = `toEngine,
+    handler    = append!{engine},
+    msgAsTable = true,
+    batchSize  = 1,
+    throttle   = 0.0
+)
+
+// 5. Drive some data
+for (i in 0..19) {
+    insert into ticks values(now(), `AAPL, 100.0 + i * 0.1, 10)
+    insert into ticks values(now(), `MSFT, 260.0 + i * 0.2, 20)
+}
+
+// 6. Observe
+select * from ticksEnriched

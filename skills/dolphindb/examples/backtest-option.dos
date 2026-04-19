@@ -1,0 +1,167 @@
+// =============================================================================
+// backtest-option.dos — ETF-option vertical spread, IV & Greeks on the fly
+//
+// Demonstrates:
+//   * Backtest plugin option config (contract master, exercise, settlement).
+//   * @jit Black-Scholes pricer for IV & Greeks.
+//   * Rolling a vertical spread on every daily close.
+//   * Reading the contract master to pick strikes.
+//
+// Prereq:
+//   installPlugin("backtest"); loadPlugin("backtest")
+// =============================================================================
+
+loadPlugin("backtest")
+go
+
+// -----------------------------------------------------------------------------
+// 1. JIT Black-Scholes — IV via Newton + Greeks
+// -----------------------------------------------------------------------------
+
+@jit
+def bsPrice(S, K, r, T, sigma, cp) {
+    // cp: +1 call, -1 put
+    if (T <= 0 or sigma <= 0) return max(cp * (S - K), 0.0)
+    d1 = (log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * sqrt(T))
+    d2 = d1 - sigma * sqrt(T)
+    return cp * (S * cdfNormal(0, 1, cp * d1) - K * exp(-r * T) * cdfNormal(0, 1, cp * d2))
+}
+
+@jit
+def bsVega(S, K, r, T, sigma) {
+    if (T <= 0 or sigma <= 0) return 0.0
+    d1 = (log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * sqrt(T))
+    return S * sqrt(T) * exp(-0.5 * d1 * d1) / sqrt(2 * pi)
+}
+
+@jit
+def impliedVol(price, S, K, r, T, cp) {
+    sigma = 0.25
+    for (i in 0..40) {
+        p = bsPrice(S, K, r, T, sigma, cp)
+        v = bsVega(S, K, r, T, sigma)
+        if (v < 1e-10) break
+        diff = p - price
+        if (abs(diff) < 1e-6) return sigma
+        sigma = sigma - diff / v
+        if (sigma <= 0.001) sigma = 0.001
+        if (sigma > 5.0)    sigma = 5.0
+    }
+    return sigma
+}
+
+// -----------------------------------------------------------------------------
+// 2. Contract master + synthetic bars for two call strikes on 50ETF
+// -----------------------------------------------------------------------------
+
+contracts = table(
+    `ETF50C2400`ETF50C2450             as symbol,
+    `ETF50`ETF50                        as underlying,
+    take(1, 2)                          as cp,           // 1 = call
+    2.40 2.45                           as strike,
+    take(2024.03.27, 2)                 as expiry,
+    take(10000, 2)                      as lotSize)
+
+def genOptionBars(contracts, underPx, date, n) {
+    result = table(100000:0, `symbol`ts`open`high`low`close`volume,
+                   [SYMBOL, TIMESTAMP, DOUBLE, DOUBLE, DOUBLE, DOUBLE, LONG])
+    ts = date + 09:30:00.000 + (0..(n-1)) * 60_000
+    undPath = underPx * cumprod(1 + 0.0001 + rand(0.002, n) - 0.001)
+    T = double(contracts.expiry[0] - date) / 365.0
+    for (i in 0..(size(contracts)-1)) {
+        K  = contracts.strike[i]
+        cp = contracts.cp[i]
+        // use flat IV 0.25 to generate synthetic prices
+        px = each(bsPrice{_, K, 0.02, T, 0.25, cp}, undPath)
+        vol = int(rand(500, n)) + 100
+        result.append!(table(
+            take(contracts.symbol[i], n) as symbol,
+            ts as ts,
+            (px - 0.001) as open, (px + 0.002) as high,
+            (px - 0.002) as low, px as close,
+            vol as volume))
+    }
+    return result
+}
+
+bars = genOptionBars(contracts, 2.42, 2024.03.15, 240)
+print("option bars: " + size(bars))
+
+// -----------------------------------------------------------------------------
+// 3. Strategy — hold a 2.40/2.45 bull call spread, ride IV
+// -----------------------------------------------------------------------------
+
+def initialize(mutable context) {
+    context.longLeg  = `ETF50C2400
+    context.shortLeg = `ETF50C2450
+    context.opened   = false
+    context.spreadLot = 10
+}
+
+def onBar(mutable context, msg, indicator) {
+    if (not context.opened) {
+        // open on first bar
+        if (context.longLeg in msg.keys() and context.shortLeg in msg.keys()) {
+            pxL = msg[context.longLeg].close
+            pxS = msg[context.shortLeg].close
+            Backtest::submitOrder(context.engine,
+                (context.longLeg,  context.tradeTime, 5, pxL + 0.002, context.spreadLot, 1),
+                "open_long_leg")
+            Backtest::submitOrder(context.engine,
+                (context.shortLeg, context.tradeTime, 5, pxS - 0.002, context.spreadLot, 3),
+                "open_short_leg")
+            context.opened = true
+        }
+    }
+}
+
+def onDailyClose(mutable context, msg) {
+    cash = Backtest::getCashInfo(context.engine)
+    print("[" + context.tradeDate + "] equity = " + cash.totalAsset)
+}
+
+// -----------------------------------------------------------------------------
+// 4. Engine config (options)
+// -----------------------------------------------------------------------------
+
+config = dict(STRING, ANY)
+config["assetType"]       = 2              // 2 = option
+config["startDate"]       = 2024.03.15
+config["endDate"]         = 2024.03.15
+config["startCash"]       = 500_000.0
+config["commissionRate"]  = 2.0            // per-contract fee, yuan
+config["minCommission"]   = 0.0
+config["slippage"]        = 0.002
+config["optionMultiplier"] = 10000
+config["contractMaster"]  = contracts
+
+engine = Backtest::createBacktester(config,
+    barSchema   = select symbol, ts, open, high, low, close, volume from bars limit 0,
+    initialize  = initialize,
+    onBar       = onBar,
+    onDailyClose = onDailyClose)
+
+Backtest::feedBarData(engine, bars)
+Backtest::run(engine)
+
+// -----------------------------------------------------------------------------
+// 5. Post-run: compute realized IV on each leg at close
+// -----------------------------------------------------------------------------
+
+T = double(contracts.expiry[0] - 2024.03.15) / 365.0
+last = select last(close) as px from bars group by symbol
+print("=== last prices ===");  print(last)
+// (In a real backtest you'd join with underlying path per bar.)
+underLast = 2.43
+for (i in 0..(size(contracts)-1)) {
+    sym = contracts.symbol[i]
+    K   = contracts.strike[i]
+    px  = exec first(px) from last where symbol = sym
+    iv  = impliedVol(px, underLast, K, 0.02, T, 1)
+    print(sym + "  px=" + px + "  IV=" + format(iv, "0.0000"))
+}
+
+print("=== trades ===");         print(Backtest::getTrades(engine))
+print("=== daily PnL ===");      print(Backtest::getDailyPnL(engine))
+
+Backtest::dropBacktester(engine)

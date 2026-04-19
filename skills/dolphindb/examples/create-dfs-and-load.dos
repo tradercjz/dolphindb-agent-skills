@@ -1,0 +1,39 @@
+// Example: create a TSDB DFS database, a partitioned table, and load sample data.
+// Run inside the DolphinDB web notebook or via:  ./dolphindb -run create-dfs-and-load.dos
+
+if(existsDatabase("dfs://demo")) { dropDatabase("dfs://demo") }
+
+db = database(
+    directory       = "dfs://demo",
+    partitionType   = VALUE,
+    partitionScheme = 2024.01.01..2024.12.31,
+    engine          = "TSDB"
+)
+
+schema = table(
+    1:0,
+    `sym`ts`price`volume,
+    [SYMBOL, TIMESTAMP, DOUBLE, INT]
+)
+
+pt = db.createPartitionedTable(
+    table            = schema,
+    tableName        = `trades,
+    partitionColumns = `ts,
+    sortColumns      = `sym`ts,
+    keepDuplicates   = ALL
+)
+
+// generate 10k rows of synthetic ticks across 5 symbols, one day
+n   = 10000
+sym = take(`AAPL`MSFT`GOOG`AMZN`NVDA, n)
+ts  = 2024.01.02T09:30:00.000 + rand(23400000, n)    // random within a trading day, ms
+px  = 100.0 + rand(50.0, n)
+vol = rand(1000, n)
+
+rows = table(sym, ts, px as price, vol as volume)
+pt.append!(rows)
+
+// sanity check
+select count(*) from loadTable("dfs://demo", `trades)
+select top 5 * from loadTable("dfs://demo", `trades) where sym = `AAPL order by ts

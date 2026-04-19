@@ -1,0 +1,141 @@
+// =============================================================================
+// parquet-roundtrip.dos — Parquet → DFS (TSDB) → Parquet, type-preserving.
+//
+// Demonstrates:
+//   * Inspecting a parquet file's schema.
+//   * Bulk-loading parquet into a TSDB DFS table with an explicit schema.
+//   * Reading a partition back out and saving as parquet (compressed).
+//   * Pitfalls around SYMBOL, DECIMAL, and nullable integer columns.
+//
+// Prereq:
+//   installPlugin("parquet"); loadPlugin("parquet")
+// =============================================================================
+
+loadPlugin("parquet")
+go
+
+// -----------------------------------------------------------------------------
+// 0. Paths
+// -----------------------------------------------------------------------------
+
+INPUT  = "/data/raw/ticks_2024-03-15.parquet"
+OUTPUT = "/data/out/ticks_2024-03-15.parquet"
+DBPATH = "dfs://tick"
+TBL    = `trade
+
+// -----------------------------------------------------------------------------
+// 1. Inspect source schema — NEVER skip this step on new data
+// -----------------------------------------------------------------------------
+
+meta = parquet::extractParquetSchema(INPUT)
+print("=== parquet schema ===");  print(meta)
+// meta is a table: name | type | physicalType | logicalType | ...
+// Verify expected columns and widths before ingest.
+
+// -----------------------------------------------------------------------------
+// 2. Build explicit DolphinDB schema (narrower / correct types)
+// -----------------------------------------------------------------------------
+
+ddbSchema = table(
+    `ts`sym`px`vol`side as name,
+    `NANOTIMESTAMP`SYMBOL`DECIMAL32(4)`LONG`CHAR as type)
+
+// -----------------------------------------------------------------------------
+// 3. Create DFS table if missing (TSDB engine, partition by date + hash sym)
+// -----------------------------------------------------------------------------
+
+if (not existsDatabase(DBPATH)) {
+    dbDate = database("", VALUE, 2024.01.01..2030.12.31)
+    dbSym  = database("", HASH,  [SYMBOL, 20])
+    db = database(DBPATH, COMPO, [dbDate, dbSym], engine="TSDB")
+    tpl = table(1:0, ddbSchema.name, ddbSchema.type)
+    db.createPartitionedTable(
+        table            = tpl,
+        tableName        = TBL,
+        partitionColumns = `ts`sym,
+        sortColumns      = `sym`ts,
+        keepDuplicates   = LAST)              // upsert semantics on (sym, ts)
+}
+
+// -----------------------------------------------------------------------------
+// 4. Load parquet → DFS, casting to narrower types per row group
+// -----------------------------------------------------------------------------
+
+def loadBatch(file, db, tbl, schema) {
+    src = parquet::loadParquet(file, schema)
+    // Cast explicitly; parquet integer nulls would otherwise widen to LONG
+    dest = select
+        nanotimestamp(ts) as ts,
+        symbol(sym)       as sym,
+        decimal32(px, 4)  as px,
+        long(vol)         as vol,
+        char(side)        as side
+    from src
+    loadTable(db, tbl).append!(dest)
+    return size(dest)
+}
+
+n = loadBatch(INPUT, DBPATH, TBL, ddbSchema)
+print("loaded rows: " + n)
+
+// For very large parquet (> 1 GB), prefer the chunked API:
+//   parquet::loadParquetEx(db, tbl, ["ts","sym"], INPUT, schema, chunkSize=1_000_000)
+// which streams row-groups and writes into DFS in parallel.
+
+// -----------------------------------------------------------------------------
+// 5. Read back & sanity-check
+// -----------------------------------------------------------------------------
+
+t = loadTable(DBPATH, TBL)
+head = select top 5 * from t where date(ts) = 2024.03.15
+print("=== sample rows ===");  print(head)
+
+summary = select count(*) as rows,
+                 count(distinct sym) as uniqueSyms,
+                 min(ts) as tsMin, max(ts) as tsMax
+          from t where date(ts) = 2024.03.15
+print("=== summary ===");  print(summary)
+
+// -----------------------------------------------------------------------------
+// 6. Export back to parquet with compression
+// -----------------------------------------------------------------------------
+
+out = select * from t where date(ts) = 2024.03.15 order by sym, ts
+
+parquet::saveParquet(
+    tbl          = out,
+    fileName     = OUTPUT,
+    compression  = `SNAPPY,                   // `UNCOMPRESSED | SNAPPY | GZIP | LZ4 | ZSTD
+    rowGroupSize = 1_000_000)
+
+print("wrote " + OUTPUT + " (" + size(out) + " rows)")
+
+// -----------------------------------------------------------------------------
+// 7. Roundtrip integrity
+// -----------------------------------------------------------------------------
+
+rt = parquet::loadParquet(OUTPUT, ddbSchema)
+mism = select count(*) as c from rt
+       where not (ts == out.ts and sym == out.sym and px == out.px
+                  and vol == out.vol and side == out.side)
+print("mismatched rows: " + mism.c[0])        // expect 0
+
+// -----------------------------------------------------------------------------
+// Notes / traps
+// -----------------------------------------------------------------------------
+// * SYMBOL is preserved as string on disk; round-tripping symbol ⇔ string
+//   is lossless in the column sense but symbol dictionary in DolphinDB is
+//   per-partition → many unique strings → dictionary bloat. Prefer STRING
+//   for high-cardinality text columns.
+//
+// * DECIMAL32/64 parquet columns map to DolphinDB DECIMAL32/64. A float64
+//   parquet column cast to DECIMAL will silently lose precision past 15
+//   significant digits — verify with the mismatch check above.
+//
+// * Nullable int64 parquet columns: DolphinDB LONG nulls are sentinel
+//   -2^63, not pd.NA. The cast above preserves the null for rows where
+//   the parquet value is missing.
+//
+// * For > 10 GB ingests, use parquet::loadParquetEx with parallel worker
+//   count matching your DFS partitions. See:
+//     docs/plugins/parquet/, docs/50-ingestion/hdf5-parquet.md.

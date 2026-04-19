@@ -1,0 +1,25 @@
+# getHomeDir
+
+## 语法
+
+`getHomeDir()`
+
+## 详情
+
+查询本地节点的主目录。主目录是由配置文件 dolphindb.cfg 定义的。
+
+## 参数
+
+无
+
+## 返回值
+
+字符串标量。
+
+## 例子
+
+```
+getHomeDir()
+
+// output: /data/ddb/server
+```

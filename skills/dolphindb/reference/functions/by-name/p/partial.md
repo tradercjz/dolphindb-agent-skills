@@ -1,0 +1,33 @@
+# partial
+
+## 语法
+
+`partial(func, args...)`
+
+## 详情
+
+创建一个部分应用。
+
+## 参数
+
+**func** 是 DolphinDB 中的函数。
+
+**args...** 是函数的参数。
+
+## 返回值
+
+一个 FUNCTIONDEF。
+
+## 例子
+
+```
+partial(add,1)(2);
+// output
+3
+
+def f(a,b):a pow b
+g=partial(f, 2)
+g(3);
+// output
+8
+```

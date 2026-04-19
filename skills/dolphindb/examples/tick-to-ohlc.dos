@@ -1,0 +1,36 @@
+// Example: compute 1-minute OHLC bars from ticks in a DFS table, and push to a DFS bar table.
+
+// Assumes ``create-dfs-and-load.dos`` has been executed.
+
+// 1. Build the bar table once (VALUE by date, OLAP is fine for aggregated bars)
+if(not existsDatabase("dfs://demo_bar")) {
+    dbBar = database("dfs://demo_bar", VALUE, 2024.01.01..2024.12.31, engine="TSDB")
+    dbBar.createPartitionedTable(
+        table            = table(1:0,
+                                 `sym`minute`open`high`low`close`volume,
+                                 [SYMBOL, TIMESTAMP, DOUBLE, DOUBLE, DOUBLE, DOUBLE, LONG]),
+        tableName        = `minBar,
+        partitionColumns = `minute,
+        sortColumns      = `sym`minute
+    )
+}
+
+// 2. Aggregate from ticks → bars, appending to DFS in one shot per date
+t  = loadTable("dfs://demo",     `trades)
+pt = loadTable("dfs://demo_bar", `minBar)
+
+bars = select
+    first(price)  as open,
+    max(price)    as high,
+    min(price)    as low,
+    last(price)   as close,
+    sum(volume)   as volume
+from t
+where date(ts) = 2024.01.02
+group by sym, bar(ts, 60s) as minute
+order by sym, minute
+
+pt.append!(bars)
+
+select count(*) as nBars from loadTable("dfs://demo_bar", `minBar)
+select top 5 * from loadTable("dfs://demo_bar", `minBar) order by sym, minute

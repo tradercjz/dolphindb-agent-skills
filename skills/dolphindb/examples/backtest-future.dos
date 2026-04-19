@@ -1,0 +1,152 @@
+// =============================================================================
+// backtest-future.dos — Minute-frequency CTA strategy on CSI300 futures (IF)
+//
+// Demonstrates:
+//   * Backtest plugin with futures-asset config (margin, multiplier, lot=1).
+//   * Double-MA cross CTA signal.
+//   * @state + @jit factor for hot path.
+//   * Contract-level position & P&L, including settlement and margin call.
+//
+// Run:
+//   dolphindb -console
+//   use it("backtest-future.dos")
+//
+// Prereq:
+//   installPlugin("backtest"); loadPlugin("backtest")
+// =============================================================================
+
+loadPlugin("backtest")
+go
+
+// -----------------------------------------------------------------------------
+// 1. Synthetic 1-min bar series for IF2403 (one day)
+// -----------------------------------------------------------------------------
+
+def genFutureBars(symbol, date, n, startPx) {
+    ts = date + 09:30:00.000 + (0..(n-1)) * 60_000
+    // random walk with small drift
+    rets = 0.0001 + rand(0.002, n) - 0.001
+    px   = startPx * cumprod(1 + rets)
+    vol  = int(rand(100, n)) + 50
+    return table(take(symbol, n) as symbol,
+                 ts as ts,
+                 (px - 0.2) as open,
+                 (px + 0.3) as high,
+                 (px - 0.3) as low,
+                 px as close,
+                 vol as volume,
+                 (vol * px * 300) as amount)
+}
+
+bars = genFutureBars(`IF2403, 2024.03.15, 240, 3500.0)
+print("synthetic bars: " + size(bars))
+
+// -----------------------------------------------------------------------------
+// 2. @state + @jit factor — fast path for reactive engine
+// -----------------------------------------------------------------------------
+
+@state
+@jit
+def fastSMA(x, n) {
+    return mavg(x, n)
+}
+
+// -----------------------------------------------------------------------------
+// 3. Strategy callbacks
+// -----------------------------------------------------------------------------
+
+def initialize(mutable context) {
+    context.symbol    = `IF2403
+    context.lotSize   = 1                        // 1 contract per trade
+    context.maShort   = 5
+    context.maLong    = 20
+
+    // Subscribe factor stream driven by incoming bars
+    Backtest::subscribeIndicator(
+        engine     = context.engine,
+        metrics    = <[fastSMA(close, 5)  as sma5,
+                       fastSMA(close, 20) as sma20]>,
+        keyColumn  = `symbol,
+        dummyTable = select symbol, ts, close from bars limit 0)
+}
+
+def onBar(mutable context, msg, indicator) {
+    for (sym in msg.keys()) {
+        if (sym != context.symbol) continue
+        ind = indicator[sym]
+        if (not (isValid(ind.sma5) and isValid(ind.sma20))) continue
+
+        pos = Backtest::getPosition(context.engine, sym)
+        netPos = pos.longPosition - pos.shortPosition
+        px  = msg[sym].close
+
+        // golden cross → long
+        if (ind.sma5 > ind.sma20 and netPos <= 0) {
+            if (netPos < 0) {                    // cover short first
+                Backtest::submitOrder(context.engine,
+                    (sym, context.tradeTime, 5, px + 0.2, abs(netPos), 4),    // 4 = buy-to-cover
+                    "cover_short")
+            }
+            Backtest::submitOrder(context.engine,
+                (sym, context.tradeTime, 5, px + 0.2, context.lotSize, 1),    // 1 = buy-open
+                "long_enter")
+        }
+        // death cross → short
+        else if (ind.sma5 < ind.sma20 and netPos >= 0) {
+            if (netPos > 0) {                    // close long first
+                Backtest::submitOrder(context.engine,
+                    (sym, context.tradeTime, 5, px - 0.2, netPos, 2),         // 2 = sell-close
+                    "close_long")
+            }
+            Backtest::submitOrder(context.engine,
+                (sym, context.tradeTime, 5, px - 0.2, context.lotSize, 3),    // 3 = sell-open
+                "short_enter")
+        }
+    }
+}
+
+def onDailyClose(mutable context, msg) {
+    // auto-settlement happens in-engine; just log PnL here
+    cash = Backtest::getCashInfo(context.engine)
+    print("[" + context.tradeDate + "] equity = " +
+          cash.totalAsset + "  margin = " + cash.marginUsed)
+}
+
+// -----------------------------------------------------------------------------
+// 4. Engine config (futures)
+// -----------------------------------------------------------------------------
+
+config = dict(STRING, ANY)
+config["assetType"]          = 1              // 1 = futures
+config["startDate"]          = 2024.03.15
+config["endDate"]            = 2024.03.15
+config["startCash"]          = 1_000_000.0
+config["commissionRate"]     = 0.00003        // 0.3 bps
+config["minCommission"]      = 0.0
+config["slippage"]           = 0.2            // 0.2 index points
+config["matchingMode"]       = "closeToOpen"
+config["futureMultiplier"]   = dict(STRING, INT)  // per-contract multiplier
+config["futureMultiplier"]["IF2403"] = 300
+config["marginRatio"]        = dict(STRING, DOUBLE)
+config["marginRatio"]["IF2403"] = 0.12
+
+engine = Backtest::createBacktester(config,
+    barSchema   = select symbol, ts, open, high, low, close, volume, amount from bars limit 0,
+    initialize  = initialize,
+    onBar       = onBar,
+    onDailyClose = onDailyClose)
+
+// -----------------------------------------------------------------------------
+// 5. Run & inspect
+// -----------------------------------------------------------------------------
+
+Backtest::feedBarData(engine, bars)
+Backtest::run(engine)
+
+trades = Backtest::getTrades(engine)
+pnl    = Backtest::getDailyPnL(engine)
+print("=== trades ===");  print(trades)
+print("=== daily PnL ===");  print(pnl)
+
+// Clean up
+Backtest::dropBacktester(engine)

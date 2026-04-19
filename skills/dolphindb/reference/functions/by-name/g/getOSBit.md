@@ -1,0 +1,25 @@
+# getOSBit
+
+## 语法
+
+`getOSBit()`
+
+## 详情
+
+查询 DolphinDB server 所在操作系统的位数。
+
+## 参数
+
+无
+
+## 返回值
+
+INT 类型标量。
+
+## 例子
+
+```
+getOSBit();
+
+// output: 64
+```

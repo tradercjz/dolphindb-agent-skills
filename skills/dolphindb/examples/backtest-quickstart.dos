@@ -1,0 +1,110 @@
+// Example: end-to-end stock backtest using the Backtest plugin.
+// Strategy: buy 100 shares of each symbol on the first bar it appears,
+// hold, flat at end. Demonstrates engine lifecycle, callback contract,
+// order submission, and result retrieval.
+//
+// Prereq:
+//   loadPlugin("MatchingEngineSimulator")
+//   loadPlugin("Backtest")
+
+loadPlugin("MatchingEngineSimulator")
+loadPlugin("Backtest")
+
+//----------------------------------------------------------------
+// 1. Strategy body
+//----------------------------------------------------------------
+def initialize(mutable context) {
+    context.entered = set(SYMBOL())         // symbols we already bought
+}
+
+def onBar(mutable context, msg, indicator) {
+    for (sym in msg.keys()) {
+        if(context.entered.contains(sym)) { continue }
+
+        price = msg[sym].close
+        Backtest::submitOrder(
+            context.engine,
+            (sym, context.tradeTime, 1 /* limit */, price + 0.02, 100, 1 /* buy */),
+            "buyOpen"
+        )
+        context.entered.append!(sym)
+    }
+}
+
+def afterTrading(mutable context, date) {
+    print("=== end of " + string(date) + " ===")
+    print(Backtest::getCashInfo(context.engine))
+}
+
+//----------------------------------------------------------------
+// 2. Synthetic bar data (replace with real CSV / DFS load)
+//----------------------------------------------------------------
+symbols = `AAPL`MSFT`GOOG
+n       = 30
+ts      = 2024.01.02T09:30:00.000 + (0..(n-1)) * 60000     // 1-min bars
+rows = array(ANY, 0)
+for (s in symbols) {
+    for (t in ts) {
+        open = 100.0 + rand(2.0, 1)[0]
+        high = open + rand(1.0, 1)[0]
+        low  = open - rand(1.0, 1)[0]
+        close = low + rand(high - low, 1)[0]
+        rows.append!([s, t, open, high, low, close, rand(10000, 1)[0],
+                      close * 10000, close * 1.1, close * 0.9])
+    }
+}
+colName = `symbol`tradeTime`open`low`high`close`volume`amount`upLimitPrice`downLimitPrice
+colType = [SYMBOL, TIMESTAMP, DOUBLE, DOUBLE, DOUBLE, DOUBLE, LONG, DOUBLE, DOUBLE, DOUBLE]
+bars = table(colName as name, colType as type)
+for (r in rows) { bars.append!(table(r[0] as symbol, r[1] as tradeTime,
+                                     r[2] as open, r[4] as low, r[3] as high,
+                                     r[5] as close, r[6] as volume,
+                                     r[7] as amount, r[8] as upLimitPrice,
+                                     r[9] as downLimitPrice)) }
+bars = select * from bars order by tradeTime, symbol
+
+//----------------------------------------------------------------
+// 3. Engine config
+//----------------------------------------------------------------
+config = {
+    startDate:     2024.01.02,
+    endDate:       2024.01.02,
+    strategyGroup: `stock,
+    cash:          1000000.0,
+    commission:    0.00015,
+    tax:           0.001,
+    slippage:      0.0,
+    matchingRatio: 1.0,
+    dataType:      3                     // 3 = minute bar
+}
+
+callbacks = {
+    initialize:   initialize,
+    onBar:        onBar,
+    afterTrading: afterTrading
+}
+
+//----------------------------------------------------------------
+// 4. Run
+//----------------------------------------------------------------
+try { Backtest::dropBacktestEngine("demo01") } catch(ex) { /* first run */ }
+engine = Backtest::createBacktester("demo01", config, callbacks, false)
+
+Backtest::appendQuotationMsg(engine, bars)
+
+//----------------------------------------------------------------
+// 5. Results
+//----------------------------------------------------------------
+print("\n--- trade details ---")
+print(Backtest::getTradeDetails(engine))
+
+print("\n--- return summary ---")
+print(Backtest::getReturnSummary(engine))
+
+print("\n--- final positions ---")
+for (s in symbols) {
+    print(string(s) + " " + string(Backtest::getPosition(engine, s)))
+}
+
+// clean up
+Backtest::dropBacktestEngine("demo01")

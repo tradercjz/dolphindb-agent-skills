@@ -1,0 +1,45 @@
+# getInstrumentKeys
+
+首发版本：3.00.4.1
+
+## 语法
+
+`getInstrumentKeys(instrument)`
+
+## 详情
+
+根据输入的金融工具，获取该工具所包含的字段。
+
+## 参数
+
+**instrument** INSTRUMENT 类型标量或向量，表示金融工具。
+
+## 返回值
+
+* 当 *instrument* 是标量时，返回 STRING 类型向量。
+* 当 *instrument* 是向量时，返回由 STRING 类型向量组成的元组。
+
+## 例子
+
+```
+bond = {
+    "productType": "Cash",
+    "assetType": "Bond",
+    "bondType": "ZeroCouponBond",
+    "instrumentId": "0001",
+    "start": 1996.03.01,
+    "maturity": 2032.05.15,
+    "dayCountConvention": "ActualActualISDA",
+    "coupon": 0.0276,
+    "issuePrice": 100.0,
+    "frequency": "Semiannual",
+    "subType":"TREASURY_BOND",
+    "creditRating":"B",
+    "settlement": 2022.05.15
+}
+ins = parseInstrument(bond)
+getInstrumentKeys(ins)
+// output: ["coupon","subType","discountCurve","cashflow","currency","calendar","dayCountConvention","start","nominal","instrumentId","creditRating","maturity","bondType","version","spreadCurve","productType","assetType","settlement","frequency","cashFlow","issuePrice"]
+```
+
+**相关函数：**parseInstrument、getInstrumentField

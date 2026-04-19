@@ -8,3 +8,10 @@ venv/
 *.egg
 .DS_Store
 src/dolphindb_skill_installer/skills/
+
+# Upstream DolphinDB documentation source — fetched on demand by maintainers
+# to re-run skills/dolphindb/scripts/build_from_docs.py. Not committed because
+# the mirrored content already lives in skills/dolphindb/docs/ and
+# skills/dolphindb/reference/.
+documentation-main/
+
