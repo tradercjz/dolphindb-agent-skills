@@ -53,7 +53,22 @@ TOOL_CONFIGS: Dict[str, str] = {
 # ──────────────────────────────────────────────────────────────
 AVAILABLE_SKILLS: List[str] = [
     "dolphindb",
+    "dolphindb-runtime",
 ]
+
+# One-line descriptions shown next to each skill in the checkbox.
+SKILL_DESCRIPTIONS: Dict[str, str] = {
+    "dolphindb":         "offline knowledge base (SQL dialect, DFS, streaming, backtest, …) — no server needed",
+    "dolphindb-runtime": "bash snippets to connect & run scripts via the Python API — will ask for your server info",
+}
+
+# Default placeholders inside the shipped dolphindb-runtime SKILL.md.
+# The installer rewrites these to the values the user enters in Step 5.
+_DDB_RUNTIME_SKILL = "dolphindb-runtime"
+_DEFAULT_HOST   = "127.0.0.1"
+_DEFAULT_PORT   = "8848"
+_DEFAULT_USER   = "admin"
+_DEFAULT_PASSWD = "123456"
 
 
 # ──────────────────────────────────────────────────────────────
@@ -146,6 +161,89 @@ def install_skills(
 
 
 # ──────────────────────────────────────────────────────────────
+# DolphinDB connection configuration (for dolphindb-runtime skill)
+# ──────────────────────────────────────────────────────────────
+
+def _patch_skill_connection(
+    skill_file: Path,
+    host: str, port: str, user: str, passwd: str,
+) -> None:
+    """Rewrite the 4 default connection values inside an installed SKILL.md.
+
+    Uses literal replacement of the defaults that ship in the template.
+    Only called after the skill has been copied into the target directory,
+    so the package's own template is never modified.
+    """
+    text = skill_file.read_text(encoding="utf-8")
+    # Two-phase replacement via sentinel tokens so that a user value that
+    # happens to equal another default (e.g. passwd == "admin") cannot be
+    # re-replaced in a later pass.
+    H, P, U, W = "\x00DDB_H\x00", "\x00DDB_P\x00", "\x00DDB_U\x00", "\x00DDB_W\x00"
+    text = (
+        text.replace(_DEFAULT_HOST,   H)
+            .replace(_DEFAULT_PORT,   P)
+            .replace(_DEFAULT_USER,   U)
+            .replace(_DEFAULT_PASSWD, W)
+    )
+    text = (
+        text.replace(H, host)
+            .replace(P, str(port))
+            .replace(U, user)
+            .replace(W, passwd)
+    )
+    skill_file.write_text(text, encoding="utf-8")
+
+
+def configure_dolphindb_connection(
+    tool_name: str,
+    installed_skills: List[str],
+    project_root: Path,
+) -> None:
+    """Interactively patch the dolphindb-runtime skill with real connection info.
+
+    The shipped SKILL.md uses generic defaults (127.0.0.1:8848/admin/123456).
+    After install, we offer to rewrite them to the user's actual DolphinDB so
+    the AI agent has ready-to-run bash snippets.
+    """
+    if _DDB_RUNTIME_SKILL not in installed_skills:
+        return
+
+    target_dir = resolve_tool_skills_path(tool_name, project_root)
+    skill_file = target_dir / _DDB_RUNTIME_SKILL / "SKILL.md"
+    if not skill_file.exists():
+        return
+
+    print("\n🔗 DolphinDB Connection Info")
+    print("-" * 50)
+    print("The 'dolphindb-runtime' skill contains bash snippets that connect")
+    print("to DolphinDB via the Python API. Please enter your server info so")
+    print("the installed skill is ready to run. Press Enter to accept a default.")
+
+    host: str = _ask(questionary.text, "DDB host:", default=_DEFAULT_HOST)
+    port: str = _ask(
+        questionary.text, "DDB port:", default=_DEFAULT_PORT,
+        validate=lambda v: v.isdigit() or "port must be a number",
+    )
+    user: str = _ask(
+        questionary.text, "DDB user:", default=_DEFAULT_USER,
+        validate=lambda v: bool(v.strip()) or "user cannot be empty",
+    )
+    passwd: str = _ask(
+        questionary.password, "DDB password:", default=_DEFAULT_PASSWD,
+        validate=lambda v: bool(v) or "password cannot be empty",
+    )
+
+    try:
+        _patch_skill_connection(skill_file, host, port, user, passwd)
+    except OSError as exc:
+        print(f"  ❌ Failed to patch {skill_file}: {exc}")
+        return
+
+    print(f"  ✅ Patched connection info into {skill_file}")
+    print(f"     host={host}  port={port}  user={user}  password={'*' * len(passwd)}")
+
+
+# ──────────────────────────────────────────────────────────────
 # Interactive CLI
 # ──────────────────────────────────────────────────────────────
 
@@ -199,11 +297,20 @@ def main() -> None:
             sys.exit(0)
 
     # ── Step 3: Choose skills ─────────────────────────────────
-    print("\n📦 Select skills to install:")
+    print("\n📦 Available skills:")
+    for s in AVAILABLE_SKILLS:
+        print(f"   • {s:<18} {SKILL_DESCRIPTIONS.get(s, '')}")
     selected_skills: List[str] = _ask(
         questionary.checkbox,
         "Choose skills  (Space select · Enter confirm · Ctrl+C cancel):",
-        choices=[questionary.Choice(s, checked=True) for s in AVAILABLE_SKILLS],
+        choices=[
+            questionary.Choice(
+                title=f"{s}  —  {SKILL_DESCRIPTIONS.get(s, '')}",
+                value=s,
+                checked=True,
+            )
+            for s in AVAILABLE_SKILLS
+        ],
         instruction="(Space to toggle, Enter to confirm)",
         style=_STYLE,
     )
@@ -221,7 +328,10 @@ def main() -> None:
 
     install_skills(selected_tool, selected_skills, project_root)
 
-    print("✨ Done! Please restart your AI agent to pick up the new skills.")
+    # ── Step 5: Optional DolphinDB connection patching ───────
+    configure_dolphindb_connection(selected_tool, selected_skills, project_root)
+
+    print("\n✨ Done! Please restart your AI agent to pick up the new skills.")
     print("💡 Tip: verify with /skills or by asking about DolphinDB in your agent.")
 
 
