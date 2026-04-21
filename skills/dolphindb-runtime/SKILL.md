@@ -20,15 +20,15 @@ rewrite it.
 
 | Field    | Value              |
 |----------|--------------------|
-| Host     | `127.0.0.1`        |
-| Port     | `8848`             |
-| User     | `admin`            |
-| Password | `123456`           |
+| Host     | `{{DDB_HOST}}`     |
+| Port     | `{{DDB_PORT}}`     |
+| User     | `{{DDB_USER}}`     |
+| Password | `{{DDB_PASSWD}}`   |
 
-> If the table above still shows `127.0.0.1 / 8848 / admin / 123456`,
-> the user never ran `dolphindb-agent-skills` interactively in a TTY —
-> tell them to re-run it in a real terminal (not piped) and enter their
-> actual host/port/user/password at Step 5.
+> If the table above still shows literal `{{DDB_HOST}}` / `{{DDB_PORT}}` /
+> `{{DDB_USER}}` / `{{DDB_PASSWD}}` placeholders, the user never ran the
+> `dolphindb-agent-skills` installer (or ran it non-interactively). Tell
+> them to re-run it in a real terminal and enter their real server info.
 
 ---
 

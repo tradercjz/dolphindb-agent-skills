@@ -8,6 +8,7 @@ Usage:
     dolphindb-agent-skills
 """
 
+import re
 import sys
 import shutil
 from pathlib import Path
@@ -164,33 +165,61 @@ def install_skills(
 # DolphinDB connection configuration (for dolphindb-runtime skill)
 # ──────────────────────────────────────────────────────────────
 
+# Fenced code blocks (```…```). DOTALL so the block can span lines.
+_CODE_BLOCK_RE = re.compile(r"```.*?```", re.DOTALL)
+
+
 def _patch_skill_connection(
     skill_file: Path,
     host: str, port: str, user: str, passwd: str,
 ) -> None:
-    """Rewrite the 4 default connection values inside an installed SKILL.md.
+    """Patch an installed SKILL.md with the user's real connection info.
 
-    Uses literal replacement of the defaults that ship in the template.
-    Only called after the skill has been copied into the target directory,
-    so the package's own template is never modified.
+    Two-tier strategy — important so we never mangle instructional prose:
+
+      1. `{{DDB_HOST}}` / `{{DDB_PORT}}` / `{{DDB_USER}}` / `{{DDB_PASSWD}}`
+         placeholders — replaced everywhere. These appear in the authoritative
+         connection-info table at the top of SKILL.md.
+
+      2. Default literals `127.0.0.1` / `8848` / `admin` / `123456` — replaced
+         ONLY inside fenced code blocks, so that warning sentences like
+         "don't fall back to localhost:8848" retain their original meaning
+         after patching.
+
+    The package's template is never modified — we only touch the copy that
+    was just installed into the target skills directory.
     """
     text = skill_file.read_text(encoding="utf-8")
-    # Two-phase replacement via sentinel tokens so that a user value that
-    # happens to equal another default (e.g. passwd == "admin") cannot be
-    # re-replaced in a later pass.
+
+    # Tier 1: placeholder replacement (safe anywhere).
+    text = (
+        text.replace("{{DDB_HOST}}",   host)
+            .replace("{{DDB_PORT}}",   str(port))
+            .replace("{{DDB_USER}}",   user)
+            .replace("{{DDB_PASSWD}}", passwd)
+    )
+
+    # Tier 2: default-literal replacement, scoped to fenced code blocks only.
+    # Two-phase via sentinels so a user value equal to another default (e.g.
+    # passwd == "admin") cannot be re-replaced in a later pass.
     H, P, U, W = "\x00DDB_H\x00", "\x00DDB_P\x00", "\x00DDB_U\x00", "\x00DDB_W\x00"
-    text = (
-        text.replace(_DEFAULT_HOST,   H)
-            .replace(_DEFAULT_PORT,   P)
-            .replace(_DEFAULT_USER,   U)
-            .replace(_DEFAULT_PASSWD, W)
-    )
-    text = (
-        text.replace(H, host)
-            .replace(P, str(port))
-            .replace(U, user)
-            .replace(W, passwd)
-    )
+
+    def _swap_in_block(match: "re.Match[str]") -> str:
+        block = match.group(0)
+        block = (
+            block.replace(_DEFAULT_HOST,   H)
+                 .replace(_DEFAULT_PORT,   P)
+                 .replace(_DEFAULT_USER,   U)
+                 .replace(_DEFAULT_PASSWD, W)
+        )
+        return (
+            block.replace(H, host)
+                 .replace(P, str(port))
+                 .replace(U, user)
+                 .replace(W, passwd)
+        )
+
+    text = _CODE_BLOCK_RE.sub(_swap_in_block, text)
     skill_file.write_text(text, encoding="utf-8")
 
 
