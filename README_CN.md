@@ -37,11 +37,20 @@ pip install dolphindb-agent-skills
 dolphindb-agent-skills
 ```
 
-如果提示 `dolphindb-agent-skills: command not found`（常见于 `pip install --user` 后 PATH 未包含 Scripts 目录），改用模块方式运行：
-
-```bash
-python -m dolphindb_skill_installer
-```
+> **Windows 或 PATH 问题？** 如果提示 `dolphindb-agent-skills: command
+> not found`（Windows 上是 `'dolphindb-agent-skills' 不是内部或外部
+> 命令`），说明 pip 把可执行文件装到了不在 PATH 里的 `Scripts` 目录。
+> 直接用 Python 模块方式调用就行，**一定能跑**：
+>
+> ```bash
+> python -m dolphindb_skill_installer
+> ```
+>
+> 或者改用 **pipx** 安装，它会自动处理 PATH：
+>
+> ```bash
+> pipx install dolphindb-agent-skills
+> ```
 
 交互式安装器会引导你：
 1. 选择 AI 编程工具（Claude Code / Cursor / Trae 等）

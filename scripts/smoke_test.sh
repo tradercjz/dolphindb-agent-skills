@@ -73,12 +73,16 @@ from dolphindb_skill_installer.main import _patch_skill_connection
 def run(h,p,u,w):
     with tempfile.TemporaryDirectory() as td:
         dst = Path(td) / "SKILL.md"
-        shutil.copy(ROOT / "skills/dolphindb-runtime/SKILL.md", dst)
+        shutil.copy(ROOT / "skills/dolphindb/SKILL.md", dst)
         _patch_skill_connection(dst, h, p, u, w)
         return dst.read_text()
+import re
 t = run("192.168.100.43", "8742", "myuser", "S3cret!")
-assert "127.0.0.1" not in t and "8848" not in t
+# defaults must be gone from code blocks (prose preserved on purpose)
+code = "\n".join(re.findall(r"```.*?```", t, re.DOTALL))
+assert "127.0.0.1" not in code and "8848" not in code, "default host/port leaked inside a code block"
 assert 's.connect("192.168.100.43", 8742, "myuser", "S3cret!")' in t
+assert "{{DDB_HOST}}" not in t and "{{DDB_PORT}}" not in t, "placeholder leaked"
 t = run("10.0.0.5", "8903", "joe", "admin")
 assert 's.connect("10.0.0.5", 8903, "joe", "admin")' in t
 t = run("10.0.0.5", "8903", "123456", "hunter2")
@@ -107,7 +111,7 @@ send "\r"
 expect "Install skills into this project directory"
 send "\r"
 
-# Step 3: checkbox. Both skills default-checked. Enter confirms.
+# Step 3: checkbox. Single skill 'dolphindb' default-checked. Enter confirms.
 expect "Choose skills"
 send "\r"
 
@@ -127,37 +131,47 @@ echo "[4/5] ✅ installer finished"
 
 # ── 5. hard-check produced files ────────────────────────────────
 echo "[5/5] Hard-checking produced skill files"
-SKILL="$SANDBOX/.claude/skills/dolphindb-runtime/SKILL.md"
-KB="$SANDBOX/.claude/skills/dolphindb/SKILL.md"
+SKILL="$SANDBOX/.claude/skills/dolphindb/SKILL.md"
 
 [ -f "$SKILL" ] || { echo "❌ missing $SKILL"; exit 1; }
-[ -f "$KB" ]    || { echo "❌ missing $KB";    exit 1; }
 
 fail=0
 
-# default HOST/PORT must be gone
-for bad in "127.0.0.1" "8848"; do
-    if grep -q "$bad" "$SKILL"; then
-        echo "  ❌ default '$bad' still present in $SKILL"
+# Placeholders must be gone from the authoritative connection table
+for placeholder in "{{DDB_HOST}}" "{{DDB_PORT}}" "{{DDB_USER}}" "{{DDB_PASSWD}}"; do
+    if grep -q "$placeholder" "$SKILL"; then
+        echo "  ❌ placeholder '$placeholder' still present in $SKILL"
         fail=1
     fi
 done
 
-# default PASSWD must be gone (unless the user deliberately kept it)
-if [ "$PASSWD" != "123456" ] && grep -q "\"123456\"" "$SKILL"; then
-    echo "  ❌ default password still present in $SKILL"
-    fail=1
-fi
+# default HOST/PORT/USER/PASSWD must be gone FROM CODE BLOCKS
+# (they're intentionally preserved in instructional prose).
+SKILL_PATH="$SKILL" python3 - <<'PYEOF'
+import os, re, sys
+text = open(os.environ["SKILL_PATH"]).read()
+code = "\n".join(re.findall(r"```.*?```", text, re.DOTALL))
+bad = []
+if "127.0.0.1" in code: bad.append("127.0.0.1")
+if "8848"      in code: bad.append("8848")
+if bad:
+    print("  ❌ defaults still in code blocks:", bad); sys.exit(1)
+PYEOF
+if [ $? -ne 0 ]; then fail=1; fi
 
-# new values must appear in at least one s.connect(...)
+# New values must appear in at least one s.connect(...)
 if ! grep -q "s.connect(\"$HOST\", $PORT, \"$USER_\", \"$PASSWD\"" "$SKILL"; then
     echo "  ❌ patched s.connect line not found in $SKILL"
     echo "     (expected: s.connect(\"$HOST\", $PORT, \"$USER_\", \"$PASSWD\", ...))"
     fail=1
 fi
 
-# knowledge skill must be untouched (still contains its name frontmatter)
-grep -q "^name: dolphindb$" "$KB" || { echo "  ❌ dolphindb KB looks corrupted"; fail=1; }
+# Skill must still have its frontmatter
+grep -q "^name: dolphindb$" "$SKILL" || { echo "  ❌ dolphindb skill looks corrupted"; fail=1; }
+
+# Authoritative connection table must now show user's real values
+grep -qF "| Host     | \`$HOST\`" "$SKILL" \
+    || { echo "  ❌ authoritative table host not patched in $SKILL"; fail=1; }
 
 if [ $fail -eq 0 ]; then
     echo "[5/5] ✅ all assertions passed"
@@ -165,7 +179,7 @@ if [ $fail -eq 0 ]; then
     echo "============================================================"
     echo " 🎉 smoke test passed — skill is ready to publish"
     echo "============================================================"
-    echo "  Patched connect lines in dolphindb-runtime:"
+    echo "  Patched connect lines in dolphindb skill:"
     grep -n "s.connect" "$SKILL" | sed 's/^/    /'
 else
     echo ""

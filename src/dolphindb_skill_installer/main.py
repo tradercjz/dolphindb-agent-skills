@@ -54,18 +54,16 @@ TOOL_CONFIGS: Dict[str, str] = {
 # ──────────────────────────────────────────────────────────────
 AVAILABLE_SKILLS: List[str] = [
     "dolphindb",
-    "dolphindb-runtime",
 ]
 
 # One-line descriptions shown next to each skill in the checkbox.
 SKILL_DESCRIPTIONS: Dict[str, str] = {
-    "dolphindb":         "offline knowledge base (SQL dialect, DFS, streaming, backtest, …) — no server needed",
-    "dolphindb-runtime": "bash snippets to connect & run scripts via the Python API — will ask for your server info",
+    "dolphindb": "DolphinDB knowledge + live-server runtime snippets (installer will ask for your server info to patch the skill)",
 }
 
-# Default placeholders inside the shipped dolphindb-runtime SKILL.md.
-# The installer rewrites these to the values the user enters in Step 5.
-_DDB_RUNTIME_SKILL = "dolphindb-runtime"
+# Name of the skill containing the runtime connection template that
+# the installer patches with the user's real host/port/user/password.
+_DDB_RUNTIME_SKILL = "dolphindb"
 _DEFAULT_HOST   = "127.0.0.1"
 _DEFAULT_PORT   = "8848"
 _DEFAULT_USER   = "admin"
@@ -228,11 +226,13 @@ def configure_dolphindb_connection(
     installed_skills: List[str],
     project_root: Path,
 ) -> None:
-    """Interactively patch the dolphindb-runtime skill with real connection info.
+    """Interactively patch the dolphindb skill with real connection info.
 
-    The shipped SKILL.md uses generic defaults (127.0.0.1:8848/admin/123456).
-    After install, we offer to rewrite them to the user's actual DolphinDB so
-    the AI agent has ready-to-run bash snippets.
+    The shipped SKILL.md uses `{{DDB_HOST}}` etc. placeholders in the
+    authoritative connection-info table, and generic defaults
+    (127.0.0.1:8848/admin/123456) inside the runtime code blocks. After
+    install, we rewrite both to the user's actual DolphinDB so the AI
+    agent has ready-to-run bash snippets and a correct connection table.
     """
     if _DDB_RUNTIME_SKILL not in installed_skills:
         return
@@ -244,9 +244,9 @@ def configure_dolphindb_connection(
 
     print("\n🔗 DolphinDB Connection Info")
     print("-" * 50)
-    print("The 'dolphindb-runtime' skill contains bash snippets that connect")
-    print("to DolphinDB via the Python API. Please enter your server info so")
-    print("the installed skill is ready to run. Press Enter to accept a default.")
+    print("The 'dolphindb' skill contains bash snippets that connect to")
+    print("your DolphinDB via the Python API. Please enter your server info")
+    print("so the installed skill is ready to run. Press Enter to accept a default.")
 
     host: str = _ask(questionary.text, "DDB host:", default=_DEFAULT_HOST)
     port: str = _ask(
