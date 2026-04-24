@@ -2,7 +2,7 @@
 
 [English](README.md) | 简体中文
 
-> 为 AI 编程助手（Claude Code、Cursor、Trae 等）提供 DolphinDB 数据库知识技能包。
+> 为 AI 编程助手（Claude Code、Cursor、Trae、Hermes 等）提供 DolphinDB 数据库知识技能包。
 
 ---
 
@@ -53,7 +53,7 @@ dolphindb-agent-skills
 > ```
 
 交互式安装器会引导你：
-1. 选择 AI 编程工具（Claude Code / Cursor / Trae 等）
+1. 选择 AI 编程工具（Claude Code / Cursor / Trae / Hermes 等）
 2. 确认安装目录（项目级或全局）
 3. 选择技能包并一键安装
 
@@ -83,6 +83,7 @@ cp -r dolphindb-agent-skills/skills/dolphindb .claude/skills/
 | Qoder | `.qoder/skills/` | 项目级 |
 | Antigravity（工作区级） | `.agent/skills/` | 项目级 |
 | Antigravity（全局） | `~/.agent/skills/` | 全局 |
+| Hermes | `~/.hermes/skills/database/` | 全局 |
 
 ---
 

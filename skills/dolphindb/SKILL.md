@@ -7,7 +7,7 @@ author: DolphinDB
 metadata:
   hermes:
     tags: [Database, Time-Series, Finance, DolphinDB]
-    requires_tools: [terminal, read_file, write_file, web_extract]
+    requires_tools: [terminal, read_file]
 allowed-tools:
   - Bash
   - Read

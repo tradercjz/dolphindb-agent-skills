@@ -2,7 +2,7 @@
 
 简体中文 | [English](README_CN.md)
 
-> Offline DolphinDB knowledge skills for AI coding agents (Claude Code, Cursor, Trae, and more).
+> Offline DolphinDB knowledge skills for AI coding agents (Claude Code, Cursor, Trae, Hermes, and more).
 
 ---
 
@@ -53,7 +53,7 @@ dolphindb-agent-skills
 > ```
 
 The interactive installer will ask you to:
-1. Select your AI coding tool (Claude Code / Cursor / Trae / …)
+1. Select your AI coding tool (Claude Code / Cursor / Trae / Hermes / …)
 2. Confirm the install directory (project-level or global)
 3. Pick skills and install with one confirmation
 
@@ -82,6 +82,7 @@ cp -r dolphindb-agent-skills/skills/dolphindb .claude/skills/
 | Qoder | `.qoder/skills/` | project |
 | Antigravity (workspace) | `.agent/skills/` | project |
 | Antigravity (global) | `~/.agent/skills/` | global |
+| Hermes | `~/.hermes/skills/database/` | global |
 
 ---
 
