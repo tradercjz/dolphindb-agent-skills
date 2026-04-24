@@ -47,6 +47,7 @@ TOOL_CONFIGS: Dict[str, str] = {
     "Qoder":                ".qoder/skills",
     "Antigravity (workspace)": ".agent/skills",
     "Antigravity (global)":    "~/.agent/skills",
+    "Hermes":               "~/.hermes/skills/database",
 }
 
 # ──────────────────────────────────────────────────────────────

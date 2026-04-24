@@ -2,6 +2,12 @@
 name: dolphindb
 description: "The ONE skill for anything DolphinDB — covers BOTH running queries against the user's live DolphinDB server AND offline reference / syntax lookup. Use this whenever the user mentions DolphinDB, ddb, .dos, DFS, or anything database-related for DolphinDB. Runtime side: the connection info (host/port/user/password) embedded below was written by the `dolphindb-agent-skills` installer and is the user's REAL server — use it verbatim, do NOT fall back to localhost:8848 or any other default. Runtime capabilities: one-shot queries via Python API (`import dolphindb`), executing .dos files, uploading pandas DataFrames, parameterized queries, listing DFS databases/tables (`getClusterDFSDatabases`, `getTables(database(…))`), checking table disk usage (`getTableDiskUsage`), bulk-inserting into DFS tables (`tableInsert`), robust long-lived connections (`keepAliveTime`, `reconnect`), error-safe execution. Reference side: DolphinDB SQL dialect (context by / pivot by / asof join / window join), DFS partitioned tables on TSDB / OLAP / PKEY / IMOLTP engines, stream computing (streamTable, subscribeTable, reactiveStateEngine, timeSeriesEngine, CEP, replay), strategy backtesting (Backtest plugin, MatchingEngineSimulator, simulatedExchangeEngine, OME) for stock / future / option / bond / crypto, factor computation with @state + @jit, client APIs (Python, Java, C++, JDBC, ODBC, Go, Rust), ingestion (loadText, HDF5, Parquet, Arrow, Kafka, MQTT), 70+ plugins, performance tuning, cluster ops, and lookup of any RefId Sxxxxx error code or built-in function. Keywords: DolphinDB, ddb, .dos, DFS, 回测, 策略, 因子, 我的数据库, 有哪些库, 有哪些表, 列出数据库, 列出表, list databases, list tables, show tables, run dolphindb script, connect to dolphindb, query dfs."
 license: Apache-2.0
+version: 1.0.0
+author: DolphinDB
+metadata:
+  hermes:
+    tags: [Database, Time-Series, Finance, DolphinDB]
+    requires_tools: [terminal, read_file, write_file, web_extract]
 allowed-tools:
   - Bash
   - Read
