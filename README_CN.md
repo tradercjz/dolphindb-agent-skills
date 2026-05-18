@@ -79,6 +79,8 @@ cp -r dolphindb-agent-skills/skills/dolphindb .claude/skills/
 | OpenCode | `.opencode/skills/` | 项目级 |
 | GitHub Copilot | `.github/skills/` | 项目级 |
 | Codex | `.agents/skills/` | 项目级 |
+| pi（工作区级） | `.pi/skills/` | 项目级 |
+| pi（全局） | `~/.pi/agent/skills/` | 全局 |
 | OpenClaw | `~/.openclaw/workspace/skills/` | 全局 |
 | Qoder | `.qoder/skills/` | 项目级 |
 | Antigravity（工作区级） | `.agent/skills/` | 项目级 |

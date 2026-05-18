@@ -43,6 +43,8 @@ TOOL_CONFIGS: Dict[str, str] = {
     "OpenCode":             ".opencode/skills",
     "GitHub Copilot":       ".github/skills",
     "Codex":                ".agents/skills",
+    "pi (workspace)":       ".pi/skills",
+    "pi (global)":          "~/.pi/agent/skills",
     "OpenClaw":             "~/.openclaw/workspace/skills",
     "Qoder":                ".qoder/skills",
     "Antigravity (workspace)": ".agent/skills",

@@ -78,6 +78,8 @@ cp -r dolphindb-agent-skills/skills/dolphindb .claude/skills/
 | OpenCode | `.opencode/skills/` | project |
 | GitHub Copilot | `.github/skills/` | project |
 | Codex | `.agents/skills/` | project |
+| pi (workspace) | `.pi/skills/` | project |
+| pi (global) | `~/.pi/agent/skills/` | global |
 | OpenClaw | `~/.openclaw/workspace/skills/` | global |
 | Qoder | `.qoder/skills/` | project |
 | Antigravity (workspace) | `.agent/skills/` | project |
