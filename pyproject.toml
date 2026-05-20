@@ -4,21 +4,50 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dolphindb-agent-skills"
-version = "0.2.3"
-description = "DolphinDB Agent Skills installer — install DolphinDB knowledge skills into your AI coding agent (Claude Code, Cursor, Trae, etc.)"
+version = "0.2.4"
+description = "DolphinDB Agent Skills installer — install, configure and manage DolphinDB knowledge skills for AI coding agents (Claude Code, Cursor, Trae, GitHub Copilot, and more)"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
 authors = [{ name = "DolphinDB" }]
-keywords = ["dolphindb", "agent", "skills", "ai", "llm", "coding-assistant"]
+keywords = [
+    "dolphindb",
+    "dolphindb-skills",
+    "dolphindb-agent",
+    "agent-skills",
+    "ai-agent",
+    "ai-coding",
+    "coding-assistant",
+    "claude-code",
+    "cursor",
+    "trae",
+    "hermes",
+    "github-copilot",
+    "llm",
+    "knowledge-base",
+    "offline-docs",
+    "time-series",
+    "financial-data",
+]
 classifiers = [
-    "Programming Language :: Python :: 3",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Intended Audience :: Science/Research",
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Database",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Software Development :: Libraries :: Python Modules",
-    "Intended Audience :: Developers",
 ]
 dependencies = ["questionary>=1.10.0"]
+
+[project.urls]
+Homepage = "https://github.com/tradercjz/dolphindb-agent-skills"
+Repository = "https://github.com/tradercjz/dolphindb-agent-skills"
+Documentation = "https://github.com/tradercjz/dolphindb-agent-skills#readme"
+Issues = "https://github.com/tradercjz/dolphindb-agent-skills/issues"
 
 [project.scripts]
 dolphindb-agent-skills = "dolphindb_skill_installer.main:main"

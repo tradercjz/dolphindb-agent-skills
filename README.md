@@ -1,14 +1,14 @@
 # DolphinDB Agent Skills
 
-简体中文 | [English](README_CN.md)
+English | [简体中文](README_CN.md)
 
-> Offline DolphinDB knowledge skills for AI coding agents (Claude Code, Cursor, Trae, Hermes, and more).
+> **DolphinDB skills for AI coding agents** — install, configure, and manage offline DolphinDB knowledge skills for Claude Code, Cursor, Trae, GitHub Copilot, Hermes, and more. Teach your AI assistant to write correct DolphinDB scripts, SQL queries, and stream-processing code.
 
 ---
 
 ## 🧩 Overview
 
-This project bundles **DolphinDB documentation as Agent Skills** so your AI coding assistant can answer DolphinDB questions and write correct code — no internet required, no runtime dependencies.
+**dolphindb-agent-skills** bundles complete **DolphinDB documentation as Agent Skills** so your AI coding assistant can answer DolphinDB questions and write correct code — no internet required, no runtime dependencies.
 
 Covers:
 - DolphinDB scripting language syntax and built-in functions
@@ -60,7 +60,7 @@ The interactive installer will ask you to:
 ### Option 2 — Manual install
 
 ```bash
-git clone https://github.com/dolphindb/dolphindb-agent-skills.git
+git clone https://github.com/tradercjz/dolphindb-agent-skills.git
 
 # Example: install into Claude Code
 cp -r dolphindb-agent-skills/skills/dolphindb .claude/skills/
@@ -137,4 +137,6 @@ Apache License 2.0
 ## 🔗 Links
 
 - [DolphinDB Documentation](https://docs.dolphindb.cn/)
-- [DolphinDB GitHub](https://github.com/dolphindb)
+- [DolphinDB GitHub](https://github.com/dolphinDB)
+- [PyPI — dolphindb-agent-skills](https://pypi.org/project/dolphindb-agent-skills/)
+- [GitHub Repository](https://github.com/tradercjz/dolphindb-agent-skills)
